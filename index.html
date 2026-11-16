@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google Sign-In Example</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #f0f2f5;
+        }
+        .container {
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        #g_id_onload {
+            margin-bottom: 20px;
+        }
+        #user-info {
+            margin-top: 20px;
+            border-top: 1px solid #eee;
+            padding-top: 20px;
+            text-align: left;
+        }
+        #user-info p {
+            margin: 5px 0;
+        }
+        .error {
+            color: red;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Google Sign-In Demo</h1>
+        <p>This example demonstrates a basic Google Sign-In flow.</p>
+        <p>To make it work, replace <code>YOUR_GOOGLE_CLIENT_ID</code> with your actual Client ID from Google Cloud Console.</p>
+        <p>Also, ensure <code>http://localhost:8000</code> is added to "Authorized JavaScript Origins" in your OAuth 2.0 Client ID settings.</p>
+
+        <!-- The Google One Tap/Sign-In button will be rendered here -->
+        <div id="g_id_onload"
+             data-client_id="YOUR_GOOGLE_CLIENT_ID" <!-- IMPORTANT: Replace with your actual Google Client ID -->
+             data-callback="handleCredentialResponse"
+             data-auto_prompt="false">
+        </div>
+        <div class="g_id_signin"
+             data-type="standard"
+             data-size="large"
+             data-theme="outline"
+             data-text="sign_in_with"
+             data-shape="rectangular"
+             data-logo_alignment="left">
+        </div>
+
+        <div id="user-info">
+            <h2>Signed-in User Info:</h2>
+            <p><strong>Name:</strong> <span id="user-name">N/A</span></p>
+            <p><strong>Email:</strong> <span id="user-email">N/A</span></p>
+            <p><strong>Google ID:</strong> <span id="user-id">N/A</span></p>
+            <img id="user-picture" src="" alt="User Picture" style="display: none; border-radius: 50%; width: 50px; height: 50px; margin-top: 10px;">
+        </div>
+        <div id="error-message" class="error" style="display: none;"></div>
+    </div>
+
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script>
+        // This function is called when the user successfully signs in with Google.
+        function handleCredentialResponse(response) {
+            // The 'response' object contains a JWT (JSON Web Token) with user information.
+            // This token needs to be sent to your backend for verification and user session management.
+            // For this client-side demo, we'll just decode and display some info.
+
+            if (response.credential) {
+                const credential = response.credential;
+                console.log("Encoded JWT ID token: " + credential);
+
+                // Decode the JWT to get user information (for demonstration purposes only).
+                // In a real application, this decoding and verification should happen on your server.
+                try {
+                    const decodedToken = JSON.parse(atob(credential.split('.')[1])); // Base64 decode the payload part
+                    console.log("Decoded Token:", decodedToken);
+
+                    document.getElementById('user-name').innerText = decodedToken.name || 'N/A';
+                    document.getElementById('user-email').innerText = decodedToken.email || 'N/A';
+                    document.getElementById('user-id').innerText = decodedToken.sub || 'N/A'; // 'sub' is the Google user ID
+                    const userPicture = document.getElementById('user-picture');
+                    if (decodedToken.picture) {
+                        userPicture.src = decodedToken.picture;
+                        userPicture.style.display = 'block';
+                    } else {
+                        userPicture.style.display = 'none';
+                    }
+                    document.getElementById('error-message').style.display = 'none'; // Hide any previous errors
+
+                    // A common issue discussed in the article:
+                    // If the 'client_id' in the HTML (data-client_id) does not match the one
+                    // configured in Google Cloud Console, or if 'Authorized JavaScript Origins'
+                    // does not include the domain serving this page (e.g., http://localhost:8000),
+                    // the sign-in process will fail or the callback won't be triggered correctly.
+                    // Google's GSI library handles many errors internally, but misconfigurations
+                    // are often silent failures from the developer's perspective, leading to
+                    // "my code is fine, but it's not working" scenarios.
+
+                } catch (error) {
+                    console.error("Error decoding JWT:", error);
+                    document.getElementById('error-message').innerText = "Error processing sign-in response.";
+                    document.getElementById('error-message').style.display = 'block';
+                }
+            } else {
+                console.error("No credential found in response.");
+                document.getElementById('error-message').innerText = "Google Sign-In failed: No credential received.";
+                document.getElementById('error-message').style.display = 'block';
+            }
+        }
+
+        // Optional: Handle errors from Google Sign-In (e.g., user cancels, network issues)
+        // Note: The GSI library often handles UI-level errors internally. This is more for
+        // developer debugging or custom error displays if the library provides hooks.
+        // For issues like incorrect client_id or origin, the GSI library might not
+        // trigger a JavaScript error directly, but rather prevent the sign-in flow
+        // from completing successfully or show an error to the user in a popup.
+        // The article focuses on these "silent" external failures.
+        window.onload = function() {
+            // This is where you might catch initialization errors, but GSI is largely self-contained.
+            // The primary "error" scenario for the article's context is a misconfigured
+            // client_id or authorized origin, which would prevent handleCredentialResponse
+            // from being called with a valid credential, or cause the Google popup itself to fail.
+            if (document.getElementById('g_id_onload').getAttribute('data-client_id') === 'YOUR_GOOGLE_CLIENT_ID') {
+                document.getElementById('error-message').innerText = "WARNING: Please replace 'YOUR_GOOGLE_CLIENT_ID' with your actual Client ID from Google Cloud Console.";
+                document.getElementById('error-message').style.display = 'block';
+            }
+        };
+    </script>
+</body>
+</html>
